@@ -35,27 +35,11 @@ Build the complete Vivado project and bitstream:
 make hardware
 ```
 
-This creates an openable project at:
-
-```text
-build/vivado_proj/cva6_bram_system.xpr
-```
-
-It also copies stable hardware artifacts to:
-
-```text
-build/cva6_bram_system.bit
-build/cva6_bram_system.hwh
-```
-
 Program the FPGA with:
 
 ```sh
 make run
 ```
-
-The `run` recipe invokes XSCT directly and does not launch Vivado Hardware
-Manager.
 
 ## System composition
 
