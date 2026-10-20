@@ -1,16 +1,32 @@
-# Reproducible Zybo Z7-20 hardware flow.
+# Reproducible CVA6 hardware flow.
 
 REPO_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
 VIVADO ?= vivado
 XSCT ?= xsct
-BITSTREAM ?= $(REPO_DIR)build/cva6_bram_system.bit
+PLATFORM ?= zybo_z7_20
+
+SUPPORTED_PLATFORMS := zybo_z7_20 arty_a7_100 arty_a7_35
+
+ifeq ($(filter $(PLATFORM),$(SUPPORTED_PLATFORMS)),)
+$(error Unsupported PLATFORM '$(PLATFORM)'; choose one of: $(SUPPORTED_PLATFORMS))
+endif
+
+PROJECT_DIR := $(REPO_DIR)build/$(PLATFORM)
+PROJECT_NAME := $(PLATFORM)
+BITSTREAM ?= $(PROJECT_DIR)/$(PROJECT_NAME).runs/impl_1/cva6_bram_system_wrapper.bit
+
+PROGRAM_TCL_zybo_z7_20 := $(REPO_DIR)scripts/program_zybo.tcl
+PROGRAM_TCL_arty_a7_100 := $(REPO_DIR)scripts/program_arty_a7_100.tcl
+PROGRAM_TCL_arty_a7_35 := $(REPO_DIR)scripts/program_arty_a7_35.tcl
+PROGRAM_TCL := $(PROGRAM_TCL_$(PLATFORM))
 
 .PHONY: hardware run clean
 
 hardware:
 	$(VIVADO) -mode batch -nolog -nojournal -notrace \
-		-source $(REPO_DIR)scripts/create_bram_design.tcl -tclargs impl
+		-source $(REPO_DIR)scripts/create_bram_design.tcl \
+		-tclargs $(PLATFORM) impl
 
 run:
 	@test -f "$(BITSTREAM)" || { \
@@ -18,7 +34,7 @@ run:
 		echo "Run 'make hardware' first."; \
 		exit 2; \
 	}
-	$(XSCT) $(REPO_DIR)scripts/program_zybo.tcl "$(BITSTREAM)"
+	$(XSCT) $(PROGRAM_TCL) "$(BITSTREAM)"
 
 clean:
 	rm -rf ./build/*

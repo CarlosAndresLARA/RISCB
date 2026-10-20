@@ -1,40 +1,75 @@
-if {$argc > 1} {
-  error "usage: create_bram_design.tcl ?synth|impl?"
+if {$argc > 2} {
+  error "usage: create_bram_design.tcl ?PLATFORM? ?synth|impl?"
 }
-set run_mode [expr {$argc == 1 ? [lindex $argv 0] : "design"}]
+set platform [expr {$argc >= 1 ? [lindex $argv 0] : "zybo_z7_20"}]
+set run_mode [expr {$argc == 2 ? [lindex $argv 1] : "design"}]
 if {$run_mode ni {design synth impl}} {
-  error "usage: create_bram_design.tcl ?synth|impl?"
+  error "usage: create_bram_design.tcl ?PLATFORM? ?synth|impl?"
 }
 set run_synthesis [expr {$run_mode ne "design"}]
 set run_implementation [expr {$run_mode eq "impl"}]
 
 set script_dir [file dirname [file normalize [info script]]]
 set repo_root [file dirname $script_dir]
-set project_dir [file join $repo_root build vivado_proj]
-set project_name cva6_bram_system
+set project_dir [file join $repo_root build $platform]
+set project_name $platform
 set design_name cva6_bram_system
-set part xc7z020clg400-1
-set board_part digilentinc.com:zybo-z7-20:part0:1.2
+
+switch -- $platform {
+  zybo_z7_20 {
+    set part xc7z020clg400-1
+    set input_clock_hz 125000000
+    set input_clock_mhz 125.000
+    set bram_depth 32768
+    set bram_range 256K
+  }
+  arty_a7_100 {
+    set part xc7a100tcsg324-1
+    set input_clock_hz 100000000
+    set input_clock_mhz 100.000
+    set bram_depth 32768
+    set bram_range 256K
+  }
+  arty_a7_35 {
+    set part xc7a35ticsg324-1L
+    set input_clock_hz 100000000
+    set input_clock_mhz 100.000
+    set bram_depth 16384
+    set bram_range 128K
+  }
+  default {
+    error "unsupported platform '$platform'; choose zybo_z7_20, arty_a7_100, or arty_a7_35"
+  }
+}
+
+set pin_xdc [file join $repo_root constraints ${platform}.xdc]
+set impl_xdc_path [file join $repo_root constraints ${platform}_impl.xdc]
+foreach constraint_file [list $pin_xdc $impl_xdc_path] {
+  if {![file isfile $constraint_file]} {
+    error "missing constraint file: $constraint_file"
+  }
+}
 
 create_project -force $project_name $project_dir -part $part
-if {[llength [get_board_parts -quiet $board_part]] == 1} {
-  set_property board_part $board_part [current_project]
+foreach run_name {synth_1 impl_1} {
+  set run_part [get_property PART [get_runs $run_name]]
+  if {$run_part ne $part} {
+    error "run $run_name targets $run_part instead of $part"
+  }
 }
 set_property target_language Verilog [current_project]
 set_property simulator_language Mixed [current_project]
 set_property ip_repo_paths [file join $repo_root ip] [current_project]
 update_ip_catalog
 
-add_files -fileset constrs_1 -norecurse [list \
-  [file join $repo_root constraints zybo_z7_20.xdc] \
-  [file join $repo_root constraints zybo_z7_20_impl.xdc]]
-set impl_xdc [get_files [file join $repo_root constraints zybo_z7_20_impl.xdc]]
+add_files -fileset constrs_1 -norecurse [list $pin_xdc $impl_xdc_path]
+set impl_xdc [get_files $impl_xdc_path]
 set_property used_in_synthesis false $impl_xdc
 
 create_bd_design $design_name
 
 # External board interfaces.
-set clk_sys [create_bd_port -dir I -type clk -freq_hz 125000000 clk_sys]
+set clk_sys [create_bd_port -dir I -type clk -freq_hz $input_clock_hz clk_sys]
 set cpu_reset [create_bd_port -dir I -type rst cpu_reset]
 set_property CONFIG.POLARITY ACTIVE_HIGH $cpu_reset
 
@@ -86,13 +121,13 @@ set_property -dict [list \
   CONFIG.Byte_Size {8} \
   CONFIG.Write_Width_A {64} \
   CONFIG.Read_Width_A {64} \
-  CONFIG.Write_Depth_A {32768} \
+  CONFIG.Write_Depth_A $bram_depth \
 ] $bram
 
 set clk_wiz [create_bd_cell -type ip \
   -vlnv xilinx.com:ip:clk_wiz:6.0 clk_wiz_0]
 set_property -dict [list \
-  CONFIG.PRIM_IN_FREQ {125.000} \
+  CONFIG.PRIM_IN_FREQ $input_clock_mhz \
   CONFIG.CLKOUT1_REQUESTED_OUT_FREQ {40.000} \
   CONFIG.NUM_OUT_CLKS {1} \
   CONFIG.RESET_TYPE {ACTIVE_HIGH} \
@@ -257,7 +292,7 @@ foreach master_space {
   set_segment $master_space cva6_plic_0/s_axi     0x0C000000 64M
   set_segment $master_space cva6_uart_0/s_axi     0x10000000 4K
   set_segment $master_space cva6_timer_0/s_axi    0x18000000 4K
-  set_segment $master_space axi_bram_ctrl_0/S_AXI 0x80000000 256K
+  set_segment $master_space axi_bram_ctrl_0/S_AXI 0x80000000 $bram_range
 }
 
 # The atomics address space is an interior implementation detail of the
@@ -306,23 +341,15 @@ if {$run_synthesis} {
     report_drc -file [file join $report_dir drc_impl.rpt]
     report_cdc -file [file join $report_dir cdc_impl.rpt]
 
-    set artifact_dir [file join $repo_root build]
-    file mkdir $artifact_dir
     set impl_dir [get_property DIRECTORY [get_runs impl_1]]
     set bit_files [glob -nocomplain [file join $impl_dir *.bit]]
     if {[llength $bit_files] != 1} {
       error "expected one implementation bitstream, found [llength $bit_files]"
     }
-    file copy -force [lindex $bit_files 0] \
-      [file join $artifact_dir cva6_bram_system.bit]
-    file copy -force \
-      [file join $project_dir ${design_name}.gen sources_1 bd $design_name \
-        hw_handoff ${design_name}.hwh] \
-      [file join $artifact_dir cva6_bram_system.hwh]
     puts "Implemented $design_name with run status '$impl_status'"
-    puts "Bitstream: [file join $artifact_dir cva6_bram_system.bit]"
+    puts "Bitstream: [lindex $bit_files 0]"
   }
 } else {
-  puts "Created and validated $design_name at $project_dir"
+  puts "Created and validated $design_name for $platform at $project_dir"
 }
 
