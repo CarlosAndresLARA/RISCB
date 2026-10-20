@@ -1,4 +1,4 @@
-# Arty-A7-100 pins used by the portable CVA6 BRAM design.
+# Arty-A7-35 pins used by the portable CVA6 design.
 set_property -dict {PACKAGE_PIN E3 IOSTANDARD LVCMOS33} [get_ports clk_sys] 	
 set_property -dict {PACKAGE_PIN B8 IOSTANDARD LVCMOS33} [get_ports cpu_reset] 	
 

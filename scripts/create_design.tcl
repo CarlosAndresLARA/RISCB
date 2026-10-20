@@ -1,10 +1,25 @@
-if {$argc > 2} {
-  error "usage: create_bram_design.tcl ?PLATFORM? ?synth|impl?"
+if {$argc > 3} {
+  error "usage: create_design.tcl ?PLATFORM? ?CVA6_FREQ_MHZ? ?synth|impl?"
 }
 set platform [expr {$argc >= 1 ? [lindex $argv 0] : "zybo_z7_20"}]
-set run_mode [expr {$argc == 2 ? [lindex $argv 1] : "design"}]
+set cva6_freq_mhz 40
+set run_mode design
+if {$argc >= 2} {
+  set second_arg [lindex $argv 1]
+  if {$second_arg in {design synth impl}} {
+    set run_mode $second_arg
+  } else {
+    set cva6_freq_mhz $second_arg
+  }
+}
+if {$argc == 3} {
+  set run_mode [lindex $argv 2]
+}
+if {![string is double -strict $cva6_freq_mhz] || $cva6_freq_mhz <= 0} {
+  error "CVA6_FREQ_MHZ must be a positive number, got '$cva6_freq_mhz'"
+}
 if {$run_mode ni {design synth impl}} {
-  error "usage: create_bram_design.tcl ?PLATFORM? ?synth|impl?"
+  error "usage: create_design.tcl ?PLATFORM? ?CVA6_FREQ_MHZ? ?synth|impl?"
 }
 set run_synthesis [expr {$run_mode ne "design"}]
 set run_implementation [expr {$run_mode eq "impl"}]
@@ -13,7 +28,7 @@ set script_dir [file dirname [file normalize [info script]]]
 set repo_root [file dirname $script_dir]
 set project_dir [file join $repo_root build $platform]
 set project_name $platform
-set design_name cva6_bram_system
+set design_name cva6_system
 
 switch -- $platform {
   zybo_z7_20 {
@@ -128,7 +143,7 @@ set clk_wiz [create_bd_cell -type ip \
   -vlnv xilinx.com:ip:clk_wiz:6.0 clk_wiz_0]
 set_property -dict [list \
   CONFIG.PRIM_IN_FREQ $input_clock_mhz \
-  CONFIG.CLKOUT1_REQUESTED_OUT_FREQ {40.000} \
+  CONFIG.CLKOUT1_REQUESTED_OUT_FREQ [format %.3f $cva6_freq_mhz] \
   CONFIG.NUM_OUT_CLKS {1} \
   CONFIG.RESET_TYPE {ACTIVE_HIGH} \
 ] $clk_wiz
@@ -319,7 +334,7 @@ if {$run_synthesis} {
   wait_on_run synth_1
   set run_status [get_property STATUS [get_runs synth_1]]
   if {![string match "*Complete*" $run_status]} {
-    error "BRAM design synthesis failed: $run_status"
+    error "CVA6 design synthesis failed: $run_status"
   }
   open_run synth_1
   set report_dir [file join $project_dir reports]
@@ -333,7 +348,7 @@ if {$run_synthesis} {
     wait_on_run impl_1
     set impl_status [get_property STATUS [get_runs impl_1]]
     if {![string match "*Complete*" $impl_status]} {
-      error "BRAM design implementation failed: $impl_status"
+      error "CVA6 design implementation failed: $impl_status"
     }
     open_run impl_1
     report_utilization -file [file join $report_dir utilization_impl.rpt]

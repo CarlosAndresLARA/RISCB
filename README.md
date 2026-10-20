@@ -12,11 +12,10 @@ reset, constant, and concatenation IP used by the block design.
 
 ## Requirements
 
-- Zybo Z7-20 board
-- Vivado 2020.2 with Zynq-7000 device support
-- XSCT 2020.2 for command-line programming
-- Digilent board files are optional; the project selects the FPGA part and
-  carries all required pin constraints locally
+- [Zybo Z7-20 board](https://digilent.com/shop/zybo-z7-zynq-7000-arm-fpga-soc-development-board/)
+- [Pmod USBUART](https://digilent.com/shop/pmod-usbuart-usb-to-uart-interface/)
+- [JTAG-HS2](https://digilent.com/shop/jtag-hs2-programming-cable/)
+- Vivado 2020.2 or later (we assume that `vivado` and `xsct` are available from the terminal)
 
 ## Repository layout
 
@@ -58,3 +57,36 @@ Custom packaged IPs are:
 ## Software
 
 Once the board has been programmed, the normal [Thales](https://github.com/ThalesGroup/cva6-softcore-contest) flow can be used.
+
+## Additional hardware targets
+
+The project supports three FPGA boards:
+
+- `zybo_z7_20`: The original board used by Thales.
+- `arty_a7_100`: A low-cost Artix [FPGA](https://digilent.com/shop/arty-a7-100t-artix-7-fpga-development-board/).
+- `arty_a7_35`: An older generation [FPGA](https://digilent.com/shop/arty-a7-100t-artix-7-fpga-development-board/).
+
+For the zybo, the `Pmod USBUART` is connected to `PMOD JB` and the `JTAG-HS2` is connected to `PMOD JE`. In the Arty (either), the `Pmod USBUART` is connected to `PMOD JA` and the `JTAG-HS2` is connected to `PMOD JD`. The reset is always `BTN3`.
+
+To build and run on a different board, use:
+
+```sh
+make hardware PLATFORM=arty_a7_35
+make run PLATFORM=arty_a7_35
+```
+
+Or simply:
+
+```sh
+export PLATFORM=arty_a7_100
+make hardware 
+make run
+```
+
+## Core Frequency
+
+By default, the hardware projects build with a core frequency of 40 MHz. The core frequency can be modified at build time, but then the software component must also be updated.
+
+```sh
+make hardware CVA6_FREQ=40
+```

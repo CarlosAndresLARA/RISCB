@@ -5,6 +5,7 @@ REPO_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 VIVADO ?= vivado
 XSCT ?= xsct
 PLATFORM ?= zybo_z7_20
+CVA6_FREQ ?= 40
 
 SUPPORTED_PLATFORMS := zybo_z7_20 arty_a7_100 arty_a7_35
 
@@ -14,7 +15,7 @@ endif
 
 PROJECT_DIR := $(REPO_DIR)build/$(PLATFORM)
 PROJECT_NAME := $(PLATFORM)
-BITSTREAM ?= $(PROJECT_DIR)/$(PROJECT_NAME).runs/impl_1/cva6_bram_system_wrapper.bit
+BITSTREAM ?= $(PROJECT_DIR)/$(PROJECT_NAME).runs/impl_1/cva6_system_wrapper.bit
 
 PROGRAM_TCL_zybo_z7_20 := $(REPO_DIR)scripts/program_zybo.tcl
 PROGRAM_TCL_arty_a7_100 := $(REPO_DIR)scripts/program_arty_a7_100.tcl
@@ -25,8 +26,8 @@ PROGRAM_TCL := $(PROGRAM_TCL_$(PLATFORM))
 
 hardware:
 	$(VIVADO) -mode batch -nolog -nojournal -notrace \
-		-source $(REPO_DIR)scripts/create_bram_design.tcl \
-		-tclargs $(PLATFORM) impl
+		-source $(REPO_DIR)scripts/create_design.tcl \
+		-tclargs $(PLATFORM) $(CVA6_FREQ) impl
 
 run:
 	@test -f "$(BITSTREAM)" || { \

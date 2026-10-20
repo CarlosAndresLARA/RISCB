@@ -2,7 +2,7 @@
 # The 100 MHz input clock is created by the Clocking Wizard's generated XDC.
 
 # The FT2232 drives TCK through a regular fabric input rather than a dedicated
-# clock-capable path. Keep its I/O path short and isolate it from the 40 MHz
+# clock-capable path. Keep its I/O path short and isolate it from the CVA6
 # system domain; the DMI module contains the required handshake CDC.
 set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets jtag_tck_IBUF]
 set_max_delay -to [get_ports jtag_tdo] 20.000
@@ -11,7 +11,7 @@ set_max_delay -from [get_ports jtag_tdi] 20.000
 set_max_delay -from [get_ports jtag_trstn] 20.000
 
 set jtag_clock [get_clocks -quiet jtag_tck]
-set system_clock [get_clocks -quiet clk_out1_cva6_bram_system_clk_wiz_0_0]
+set system_clock [get_clocks -quiet clk_out1_cva6_system_clk_wiz_0_0]
 set_clock_groups -asynchronous -group $jtag_clock -group $system_clock
 
 # Preserve the explicit two-phase DMI CDC bounds from cva6_fpga.xdc, adjusted

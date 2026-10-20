@@ -1,4 +1,4 @@
-# Zybo Z7-20 pins used by the portable CVA6 BRAM design.
+# Zybo Z7-20 pins used by the portable CVA6 design.
 set_property -dict {PACKAGE_PIN K17 IOSTANDARD LVCMOS33} [get_ports clk_sys]
 set_property -dict {PACKAGE_PIN Y16 IOSTANDARD LVCMOS33} [get_ports cpu_reset]
 
